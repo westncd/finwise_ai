@@ -1,0 +1,202 @@
+{
+    "name": "FinWise Email Processor (Gmail Auto)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 1
+                        }
+                    ]
+                }
+            },
+            "id": "schedule-trigger",
+            "name": "Check Email (1m)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "postProcessAction": "read",
+                "format": "simple",
+                "mailbox": "INBOX",
+                "host": "imap.gmail.com",
+                "port": 993,
+                "secure": true,
+                "options": {
+                    "allowSelfSignedCerts": false,
+                    "customEmailRules": "UNSEEN",
+                    "readOnlyMode": false
+                }
+            },
+            "id": "imap-read",
+            "name": "Gmail IMAP",
+            "type": "n8n-nodes-base.emailReadImap",
+            "typeVersion": 2,
+            "position": [
+                650,
+                300
+            ],
+            "credentials": {
+                "imap": {
+                    "id": "QqQUbvb6mTNTuFvN",
+                    "name": "buiductung735@gmail.com"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "maxItems": 10,
+                "keepOnlySet": "first"
+            },
+            "id": "limit-node",
+            "name": "Limit to 10 Emails",
+            "type": "n8n-nodes-base.limit",
+            "typeVersion": 1,
+            "position": [
+                820,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Debug logging\nconsole.log('=== EMAIL PROCESSOR DEBUG ===');\nconsole.log('Total emails received:', $input.all().length);\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const subject = String(item.json.subject || '');\n  const bodyRaw = String(item.json.textPlain || item.json.textHtml || item.json.text || item.json.html || '');\n  \n  // FIX: Split by '---' to support multiple transactions\n  // Defensive coding: Ensure p is string before trim\n  const parts = bodyRaw.split('---').map(p => (p ? String(p).trim() : '')).filter(p => p.length > 20);\n\n  let fromAddress = 'unknown';\n  if (typeof item.json.from === 'object') {\n      fromAddress = item.json.from.value?.[0]?.address || item.json.from.text || JSON.stringify(item.json.from);\n  } else {\n      fromAddress = item.json.from || 'unknown';\n  }\n\n  console.log(`Processing email: ${subject.substring(0, 50)} with ${parts.length} parts`);\n\n  // SKIP SYSTEM ALERTS\n  if (subject.includes('FinWise Check') || subject.includes('Alert') || subject.includes('CẢNH BÁO') || subject.includes('QUÁ HẠN') || subject.includes('GẤP:') || subject.includes('Sắp tới:')) {\n      console.log('Skipping system alert email');\n      continue;\n  }\n\n  for (const part of parts) {\n      const content = (subject + ' ' + part).toLowerCase();\n      \n      const keywords = [\n        'momo', 'vcb', 'techcombank', 'vietcombank', 'acb', 'mbbank', 'tpbank', 'bidv', 'agribank',\n        'biến động số dư', 'giao dịch', 'thanh toán', 'chuyển tiền', \n        'nhận tiền', 'rút tiền', 'nạp tiền', 'transaction', 'balance', 'shopee', 'grab', 'be', 'gojek'\n      ];\n      \n      // Quick keyword check\n      if (!keywords.some(k => content.includes(k))) continue;\n\n      // === SMART AMOUNT EXTRACTION ===\n      const lines = part.split(/\\r?\\n/);\n      let bestAmount = 0;\n      let maxScore = -1;\n\n      for (const line of lines) {\n          const l = line.toLowerCase();\n          // SKIP Balance lines\n          if (l.includes('số dư') || l.includes('so du') || l.includes('balance') || l.includes('available') || l.includes('current balance')) continue;\n\n          // Regex for numbers\n          const amountRegex = /([+-]?\\d{1,3}(?:[.,]\\d{3})+|\\d+)[\\s]*(?:vnđ|vnd|đ|dong|k)?/gi;\n          const matches = line.match(amountRegex);\n          if (!matches) continue;\n\n          for (const match of matches) {\n              let cleanStr = match.replace(/[^\\d]/g, '');\n              let val = parseInt(cleanStr);\n              if (!val || val < 1000) continue;\n\n              // Scoring\n              let score = 0;\n              if (l.includes('số tiền') || l.includes('so tien') || l.includes('amount') || l.includes('total')) score += 10;\n              if (match.includes('+') || match.includes('-')) score += 5;\n              if (l.includes('thanh toán') || l.includes('payment')) score += 5;\n              \n              if (score > maxScore) {\n                  maxScore = score;\n                  bestAmount = val;\n              } else if (score === maxScore && maxScore === 0) {\n                   if (val > bestAmount) bestAmount = val;\n              }\n          }\n      }\n      \n      let amount = bestAmount;\n      if (amount === 0 || amount < 1000) continue;\n      \n      // 3. Transaction Type (Debit/Credit)\n      let type = 'expense';\n      if (part.includes('nhận tiền') || part.includes('nạp tiền') || \n          part.includes('credit') || part.includes('+')) {\n        type = 'income';\n      }\n\n      // 4. Category Detection\n      let category = 'Khác';\n      const categoryMap = {\n        'Ăn uống': ['coffee', 'cafe', 'highlands', 'starbucks', 'phở', 'cơm', 'bún', 'food', 'restaurant', 'quán ăn'],\n        'Di chuyển': ['grab', 'gojek', 'be', 'xăng', 'petrol', 'parking', 'taxi', 've so', 'vé số', 'transport'],\n        'Mua sắm': ['shopee', 'lazada', 'tiki', 'siêu thị', 'mart', 'circle k', 'shopping', '7-eleven', 'ministop'],\n        'Tiện ích': ['điện', 'nước', 'internet', 'viettel', 'vnpt', 'mobifone', 'điện thoại', 'bill'],\n        'Giải trí': ['phim', 'game', 'netflix', 'spotify', 'cgv', 'cinema', 'youtube'],\n        'Y tế': ['bệnh viện', 'nhà thuốc', 'pharmacy', 'hospital', 'clinic']\n      };\n\n      for (const [cat, kws] of Object.entries(categoryMap)) {\n        if (kws.some(k => content.includes(k))) {\n          category = cat;\n          break;\n        }\n      }\n\n      // 5. Source Detection\n      let source = 'Ngân hàng';\n      if (content.includes('momo')) source = 'MoMo';\n      else if (content.includes('vcb') || content.includes('vietcombank')) source = 'VCB';\n      else if (content.includes('zalopay')) source = 'ZaloPay';\n      else if (content.includes('techcombank') || content.includes('tcb')) source = 'Techcombank';\n      else if (content.includes('acb')) source = 'ACB';\n      else if (content.includes('mbbank')) source = 'MBBank';\n      else if (content.includes('shopee')) source = 'ShopeePay';\n      else if (content.includes('grab')) source = 'GrabPay';\n\n      // FIX: Defensive description selection\n      let desc = part.split('\\n').find(l => l.length > 5 && !l.includes('---')) || subject;\n      if (desc === subject && part.length < 100) desc = part; \n      desc = String(desc || '').substring(0, 100).replace(/\\r?\\n|\\r/g, ' ').trim();\n\n      const transaction = {\n        json: {\n          timestamp: new Date(item.json.date || item.json.receivedDate || item.json.internalDate || new Date()).toISOString(),\n          amount: amount,\n          type: type,\n          category: category,\n          description: desc || subject,\n          source: source,\n          email_from: fromAddress\n        }\n      };\n\n      console.log('Transaction found:', transaction.json);\n      results.push(transaction);\n  }\n}\n\nconsole.log('Total transactions extracted:', results.length);\nresults.sort((a, b) => new Date(b.json.timestamp) - new Date(a.json.timestamp));\nconsole.log('=== END DEBUG ===');\nreturn results;"
+            },
+            "id": "parser-code",
+            "name": "Parse Transaction",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                980,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{ $json.amount }}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "id": "filter-node",
+            "name": "Filter Valid Transactions",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1150,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://127.0.0.1:5000/api/webhook",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ amount: $json.amount, type: $json.type, category: $json.category, description: $json.description, source: $json.source, timestamp: $json.timestamp, email_from: $json.email_from }) }}",
+                "options": {
+                    "timeout": 10000
+                }
+            },
+            "id": "webhook-post",
+            "name": "Save to DB",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1350,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Error handler\nconst errorMsg = {\n  message: 'No valid transactions found',\n  timestamp: new Date().toISOString(),\n  total_emails: $input.first().json.total_emails || 0\n};\n\nconsole.log('ERROR:', errorMsg);\nreturn [{ json: errorMsg }];"
+            },
+            "id": "error-handler",
+            "name": "No Transactions Found",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1350,
+                380
+            ]
+        }
+    ],
+    "connections": {
+        "Check Email (1m)": {
+            "main": [
+                [
+                    {
+                        "node": "Gmail IMAP",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gmail IMAP": {
+            "main": [
+                [
+                    {
+                        "node": "Limit to 10 Emails",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Limit to 10 Emails": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Transaction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Transaction": {
+            "main": [
+                [
+                    {
+                        "node": "Filter Valid Transactions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter Valid Transactions": {
+            "main": [
+                [
+                    {
+                        "node": "Save to DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "No Transactions Found",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

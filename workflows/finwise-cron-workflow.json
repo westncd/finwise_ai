@@ -1,0 +1,300 @@
+{
+    "name": "FinWise Cron Manager",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "schedule-trigger",
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM finwise_db.budgets WHERE is_locked = FALSE;"
+            },
+            "id": "fetch-budgets",
+            "name": "Fetch Budgets",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "1",
+                    "name": "Local XAMPP MySQL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  const budget = item.json;\n  const limit = parseFloat(budget.limit_amount);\n  const spent = parseFloat(budget.spent);\n  \n  if (limit > 0) {\n    const ratio = spent / limit;\n    const percent = (ratio * 100).toFixed(1);\n    \n    if (ratio >= 1.0) {\n      results.push({\n        json: {\n          ...budget,\n          percent,\n          alertLevel: 'CRITICAL',\n          message: `🚨 CẢNH BÁO ĐỎ: Danh mục ${budget.category} đã tiêu lố ${percent}%! Hệ thống sẽ khóa chi tiêu.`\n        }\n      });\n    } else if (ratio >= 0.8) {\n       results.push({\n        json: {\n          ...budget,\n          percent,\n          alertLevel: 'WARNING',\n          message: `⚠️ CẢNH BÁO: Danh mục ${budget.category} đã tiêu ${percent}% ngân sách.`\n        }\n      });\n    }\n  }\n}\n\nreturn results;"
+            },
+            "id": "analyze-budgets",
+            "name": "Analyze Budgets",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.alertLevel }}",
+                            "value2": "CRITICAL"
+                        }
+                    ]
+                }
+            },
+            "id": "switch-alert",
+            "name": "Check Alert Level",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE finwise_db.budgets SET is_locked = TRUE, updated_at = NOW() WHERE id = {{ $json.id }};"
+            },
+            "id": "lock-budget",
+            "name": "Lock Budget",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 1,
+            "position": [
+                1380,
+                200
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "1",
+                    "name": "Local XAMPP MySQL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM finwise_db.bills WHERE status = 'Chờ thanh toán';"
+            },
+            "id": "fetch-bills",
+            "name": "Fetch Bills",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 1,
+            "position": [
+                680,
+                500
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "1",
+                    "name": "Local XAMPP MySQL"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const results = [];\nconst today = new Date();\nconst checkWindow = new Date();\ncheckWindow.setDate(today.getDate() + 30); // Widen to 30 days for testing\n\nfor (const item of $input.all()) {\n  const bill = item.json;\n  if (!bill.due_date) continue;\n  \n  const dueDate = new Date(bill.due_date);\n  \n  // Calculate days difference\n  const diffTime = dueDate - today;\n  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n  \n  let msg = '';\n  let level = 'BILL_REMINDER';\n  \n  if (daysLeft < 0) {\n      msg = `🔥 QUÁ HẠN: Hóa đơn ${bill.name} đã quá hạn ${Math.abs(daysLeft)} ngày!`;\n      level = 'CRITICAL';\n  } else if (daysLeft === 0) {\n      msg = `🔥 HÔM NAY: Hạn chót thanh toán hóa đơn ${bill.name}.`;\n      level = 'WARNING';\n  } else if (daysLeft <= 3) {\n      msg = `⏰ GẤP: Hóa đơn ${bill.name} cần trả trong ${daysLeft} ngày tới.`;\n      level = 'WARNING';\n  } else {\n      // For testing: Show pending bills even if far away\n      msg = `📅 Sắp tới: Hóa đơn ${bill.name} hạn ${bill.due_date} (còn ${daysLeft} ngày).`;\n      level = 'INFO';\n  }\n  \n  results.push({\n    json: {\n      ...bill,\n      alertLevel: level,\n      message: msg\n    }\n  });\n}\nreturn results;"
+            },
+            "id": "analyze-bills",
+            "name": "Analyze Bills",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                900,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "message",
+                "subject": "={{ ($json.alertLevel || 'FinWise Check') + ': ' + ($json.message || '') }}",
+                "message": "={{ $json.message || 'No content' }}",
+                "toEmail": "tumngf@gmail.com",
+                "email": "tumngf@gmail.com",
+                "emails": "tumngf@gmail.com",
+                "to": "tumngf@gmail.com"
+            },
+            "id": "send-email",
+            "name": "Send Email",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2,
+            "position": [
+                1600,
+                340
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "2",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "url": "http://127.0.0.1:5000/api/scan-anomalies",
+                "method": "GET",
+                "options": {}
+            },
+            "id": "scan-anomalies-api",
+            "name": "Scan Anomalies (Flask)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                680,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const results = [];\nconst data = $input.first().json;\n\nif (data.anomalies && data.anomalies.length > 0) {\n  for (const anomaly of data.anomalies) {\n    results.push({\n      json: {\n        ...anomaly,\n        alertLevel: anomaly.type,\n        message: anomaly.message\n      }\n    });\n  }\n}\n\nreturn results;"
+            },
+            "id": "process-anomalies",
+            "name": "Process Anomalies",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                900,
+                700
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Budgets",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch Bills",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Scan Anomalies (Flask)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Budgets": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Budgets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Budgets": {
+            "main": [
+                [
+                    {
+                        "node": "Check Alert Level",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Alert Level": {
+            "main": [
+                [
+                    {
+                        "node": "Lock Budget",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lock Budget": {
+            "main": [
+                []
+            ]
+        },
+        "Fetch Bills": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Bills",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Bills": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scan Anomalies (Flask)": {
+            "main": [
+                [
+                    {
+                        "node": "Process Anomalies",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Anomalies": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
