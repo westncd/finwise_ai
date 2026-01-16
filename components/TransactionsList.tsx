@@ -33,7 +33,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, onUpd
     try {
       addLog("Dify: Đang phân tích rủi ro dữ liệu từ MySQL...");
       const result = await detectAnomalies(transactions);
-      
+
       const updatedTransactions = transactions.map(t => {
         const anomaly = result.anomalies?.find((a: any) => a.id === t.id);
         if (anomaly) {
@@ -52,7 +52,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, onUpd
     }
   };
 
-  const filtered = transactions.filter(t => 
+  const filtered = transactions.filter(t =>
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -62,22 +62,14 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, onUpd
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm giao dịch (n8n & Mock)..." 
+          <input
+            type="text"
+            placeholder="Tìm kiếm giao dịch (n8n & Mock)..."
             className="w-full pl-14 pr-4 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
-          onClick={handleSecurityScan}
-          disabled={isScanning || transactions.length === 0}
-          className="flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg disabled:opacity-30"
-        >
-          {isScanning ? <RefreshCw size={16} className="animate-spin text-indigo-400" /> : <ShieldAlert size={16} />}
-          {isScanning ? 'Dify Scanning...' : 'Dify Security Scan'}
-        </button>
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">

@@ -13,6 +13,7 @@ import ChatAdvisor from './components/ChatAdvisor';
 import BIAnalytics from './components/BIAnalytics';
 import DataCenter from './components/DataCenter';
 import Auth from './components/Auth';
+import TransactionModal from './components/TransactionModal';
 import { Transaction, Budget, Bill } from './types';
 
 const API_BASE = "http://localhost:5000/api";
@@ -36,6 +37,7 @@ const App: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const addLog = (msg: string) => {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 8));
@@ -181,7 +183,9 @@ const App: React.FC = () => {
             <button onClick={fetchData} className="p-3 bg-white border border-slate-200 rounded-xl hover:shadow-md transition-all">
               <RefreshCw size={18} className="text-indigo-600" />
             </button>
-            <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all">
               <Plus size={18} /> Giao dịch mới
             </button>
           </div>
@@ -198,16 +202,18 @@ const App: React.FC = () => {
           {activeTab === 'datacenter' && <DataCenter onInjectMockData={handleInjectMockData} />}
           {activeTab === 'advisor' && <ChatAdvisor transactions={transactions} budgets={budgets} />}
 
-          <div className="mt-12 bg-slate-900 rounded-2xl p-5 font-mono text-[11px] text-indigo-300 shadow-xl border border-slate-800">
-            <div className="flex items-center gap-2 mb-3 text-slate-500 uppercase tracking-widest font-black text-[9px]">
-              <Terminal size={12} /> Dify & n8n Automation Logs
-            </div>
-            {logs.length === 0 ? <div className="text-slate-700 italic">Đang chờ tín hiệu từ Dify...</div> : logs.map((log, i) => (
-              <div key={i} className="py-0.5 font-medium"><span className="text-slate-600 mr-2">➜</span>{log}</div>
-            ))}
-          </div>
+
         </div>
       </main>
+
+      <TransactionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          fetchData();
+          addLog("Thêm giao dịch thủ công thành công.");
+        }}
+      />
     </div>
   );
 };

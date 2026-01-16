@@ -18,12 +18,14 @@ Sau khi tạo tài khoản Admin trên Metabase, bạn vào mục **Admin Settin
 | Mục | Giá trị | Ghi chú |
 | :--- | :--- | :--- |
 | **Database type** | MySQL | |
-| **Display name** | FinWise DB | Tên hiển thị trên Metabase |
-| **Host** | `host.docker.internal` | Nếu Metabase chạy Docker. Nếu chạy file JAR thì dùng `localhost` |
-| **Port** | 3306 | Cổng mặc định của MySQL |
-| **Database name** | `finwise_db` | Tên database của dự án |
-| **Username** | `root` | Hoặc user bạn đã tạo |
-| **Password** | (Bỏ trống) | Nếu XAMPP mặc định không có pass. Nếu có thì điền vào. |
+| **Display name** | FinWise Docker DB | |
+| **Host** | `db` | Tên service trong docker-compose.yml |
+| **Port** | 3306 | |
+| **Database name** | `finwise_db` | |
+| **Username** | `root` | |
+| **Password** | `root` | Pass mặc định mình đã cài trong docker-compose |
+
+> **Lưu ý**: Nếu bạn quay lại dùng XAMPP thì Host sẽ là `host.docker.internal` và Pass là trống. Nhưng giờ bạn đang dùng "Full Docker" nên hãy điền như bảng trên nhé.
 
 ## 3. Lưu ý quan trọng
 - **Lỗi không kết nối được (Connection refused)**:
