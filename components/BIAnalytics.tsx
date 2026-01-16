@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { 
-  BarChart3, DatabaseZap, ExternalLink, ShieldCheck, 
+import {
+  BarChart3, DatabaseZap, ExternalLink, ShieldCheck,
   Layers, Filter, Maximize2, RefreshCw, Cpu, Globe
 } from 'lucide-react';
 
@@ -12,9 +12,13 @@ interface BIAnalyticsProps {
 const BIAnalytics: React.FC<BIAnalyticsProps> = ({ type }) => {
   const [loading, setLoading] = useState(false);
 
-  // Giả định URL nhúng từ local/cloud services
+  const [customUrl, setCustomUrl] = useState('');
+
+  // Link mặc định hoặc link user nhập
+  const activeUrl = customUrl || (type === 'metabase' ? "http://localhost:3001/public/dashboard/622f0785-8c37-4bea-bc66-218e8b21fa6d" : "http://localhost:8088/...");
+
   const embedUrls = {
-    metabase: "http://localhost:3000/public/dashboard/your-uuid-here",
+    metabase: "http://localhost:3001/public/dashboard/622f0785-8c37-4bea-bc66-218e8b21fa6d",
     superset: "http://localhost:8088/superset/dashboard/your-id-here/?standalone=true"
   };
 
@@ -43,7 +47,7 @@ const BIAnalytics: React.FC<BIAnalyticsProps> = ({ type }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <button onClick={handleRefresh} className="p-3 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-all border border-slate-100">
             <RefreshCw size={18} className={loading ? 'animate-spin text-blue-500' : ''} />
@@ -55,49 +59,36 @@ const BIAnalytics: React.FC<BIAnalyticsProps> = ({ type }) => {
       </div>
 
       {/* BI Embed Container */}
-      <div className="relative bg-white rounded-[3rem] border-2 border-slate-100 shadow-2xl overflow-hidden min-h-[700px]">
+      <div className="relative bg-white rounded-[3rem] border-2 border-slate-100 shadow-2xl overflow-hidden h-[700px]">
         {loading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="font-black text-slate-400 text-[10px] uppercase tracking-[0.3em]">Connecting to {type === 'metabase' ? 'Metabase' : 'Superset'} Engine...</p>
           </div>
         )}
-        
-        {/* Placeholder UI - Trong thực tế sẽ dùng <iframe> */}
+
         <div className="w-full h-full flex flex-col">
-          <div className="p-8 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-             <div className="flex gap-4">
-                <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider shadow-sm italic cursor-pointer"><Filter size={12} /> Time: Last 30 Days</div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider shadow-sm italic cursor-pointer"><Layers size={12} /> Group By: Category</div>
-             </div>
-             <div className="flex items-center gap-2 text-indigo-500 font-black text-[9px] uppercase tracking-widest">
-                <ExternalLink size={12} /> Open in {type}
-             </div>
-          </div>
-          
-          <div className="flex-1 p-10 bg-slate-50 flex flex-col items-center justify-center text-center space-y-6">
-            <div className={`p-10 rounded-[3rem] ${type === 'metabase' ? 'bg-blue-50 text-blue-500' : 'bg-indigo-50 text-indigo-500'} animate-pulse`}>
-               {type === 'metabase' ? <BarChart3 size={80} /> : <DatabaseZap size={80} />}
+          <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center gap-4">
+            <div className="flex-1 flex gap-2">
+              <input
+                type="text"
+                placeholder="Dán Public Link của Metabase Dashboard hoặc Question vào đây..."
+                className="w-full px-4 py-2 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+              />
             </div>
-            <div className="max-w-md">
-              <h4 className="text-xl font-black text-slate-800 mb-2">Nhúng Dashboard BI Thực Tế</h4>
-              <p className="text-slate-500 text-sm font-medium leading-relaxed italic">
-                {type === 'metabase' 
-                  ? "Metabase hiển thị các biểu đồ chi tiêu MoMo & Ngân hàng qua giao diện trực quan, không cần code SQL." 
-                  : "Superset cung cấp khả năng phân tích nâng cao, Slice & Dice dữ liệu từ MySQL XAMPP với hiệu năng cao."}
-              </p>
-            </div>
-            <div className="pt-6 grid grid-cols-2 gap-4 w-full max-w-sm">
-               <div className="p-4 bg-white rounded-2xl border border-slate-200 text-left shadow-sm">
-                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Engine Port</p>
-                  <p className="text-xs font-bold text-slate-700">{type === 'metabase' ? '3000' : '8088'}</p>
-               </div>
-               <div className="p-4 bg-white rounded-2xl border border-slate-200 text-left shadow-sm">
-                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Data Source</p>
-                  <p className="text-xs font-bold text-slate-700 italic">MySQL_XAMPP</p>
-               </div>
+            <div className="flex items-center gap-2 text-indigo-500 font-black text-[9px] uppercase tracking-widest cursor-pointer hover:text-indigo-700" onClick={() => window.open(activeUrl, '_blank')}>
+              <ExternalLink size={12} /> Open in {type}
             </div>
           </div>
+
+          <iframe
+            src={activeUrl}
+            className="w-full flex-1 border-0"
+            title="BI Analytics Dashboard"
+            allowTransparency
+          />
         </div>
       </div>
 

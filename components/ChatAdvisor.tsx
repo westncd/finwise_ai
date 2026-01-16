@@ -22,7 +22,7 @@ const ChatAdvisor: React.FC<ChatAdvisorProps> = ({ transactions, budgets }) => {
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
-    
+
     const userMsg = input;
     const currentInput = input;
     setInput('');
@@ -30,31 +30,19 @@ const ChatAdvisor: React.FC<ChatAdvisorProps> = ({ transactions, budgets }) => {
     setIsTyping(true);
 
     try {
-      const response = await fetch('https://api.dify.ai/v1/chat-messages', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          inputs: {
-            transactions: transactions.slice(0, 10),
-            budgets: budgets
-          },
-          query: currentInput,
-          user: 'local-admin',
-          response_mode: 'blocking'
-        })
-      });
+      // Import dynamically to avoid circular dependencies if any, or just use the imported function
+      const { sendChatMessage } = await import('../services/aiService');
 
-      if (!response.ok) throw new Error("Dify API không phản hồi.");
-      
-      const data = await response.json();
+      const data = await sendChatMessage(currentInput, {
+        transactions: transactions.slice(0, 50), // Increased context to 50 items
+        budgets: budgets
+      }, 'local-admin');
+
       setMessages(prev => [...prev, { role: 'ai', content: data.answer }]);
     } catch (err: any) {
-      setMessages(prev => [...prev, { 
-        role: 'ai', 
-        content: `❌ LỖI DIFY: ${err.message || "Không thể kết nối tới Dify Agent."}` 
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        content: `❌ LỖI DIFY: ${err.message || "Không thể kết nối tới Dify Agent."}`
       }]);
     } finally {
       setIsTyping(false);
@@ -97,7 +85,7 @@ const ChatAdvisor: React.FC<ChatAdvisorProps> = ({ transactions, budgets }) => {
                 {msg.content}
                 {msg.role === 'ai' && (
                   <div className="mt-4 pt-3 border-t border-slate-50 flex items-center gap-2 text-[8px] font-black text-slate-400 uppercase italic">
-                     <Terminal size={10} /> Powered by Dify • SQL Data Sync
+                    <Terminal size={10} /> Powered by Dify • SQL Data Sync
                   </div>
                 )}
               </div>
@@ -124,7 +112,7 @@ const ChatAdvisor: React.FC<ChatAdvisorProps> = ({ transactions, budgets }) => {
       {/* Input Area */}
       <div className="p-5 bg-white border-t border-slate-100">
         <div className="relative flex items-center">
-          <input 
+          <input
             type="text"
             placeholder="Hỏi Dify Advisor về tài chính của bạn..."
             className="w-full pl-5 pr-14 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:bg-white transition-all text-sm font-medium"
@@ -132,7 +120,7 @@ const ChatAdvisor: React.FC<ChatAdvisorProps> = ({ transactions, budgets }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           />
-          <button 
+          <button
             onClick={handleSend}
             disabled={!input.trim() || isTyping}
             className="absolute right-2 p-3 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 disabled:opacity-30 transition-all shadow-md"

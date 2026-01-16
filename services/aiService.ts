@@ -59,7 +59,7 @@ export const getFinancialAdvice = async (transactions: Transaction[], budgets: B
   const query = `Dữ liệu giao dịch: ${JSON.stringify(transactions.slice(0, 15))}. 
   Hạn mức ngân sách: ${JSON.stringify(budgets)}. 
   Hãy đưa ra 3 lời khuyên tài chính ngắn gọn bằng tiếng Việt.`;
-  
+
   const data = await callDify(query);
   return data.answer;
 };
@@ -67,7 +67,7 @@ export const getFinancialAdvice = async (transactions: Transaction[], budgets: B
 export const detectAnomalies = async (transactions: Transaction[]) => {
   const query = `Phân tích các giao dịch sau và phát hiện bất thường: ${JSON.stringify(transactions)}. 
   Trả về JSON chuẩn format: {"anomalies": [{"id": "...", "reason": "..."}]}`;
-  
+
   const data = await callDify(query);
   return parseDifyJson(data.answer) || { anomalies: [] };
 };
@@ -75,7 +75,7 @@ export const detectAnomalies = async (transactions: Transaction[]) => {
 export const getBudgetSuggestions = async (transactions: Transaction[]) => {
   const query = `Dựa trên dữ liệu 3 tháng gần nhất: ${JSON.stringify(transactions)}, đề xuất hạn mức ngân sách mới. 
   Trả về JSON: {"suggestions": [{"category": "...", "suggestedLimit": 0, "reason": "..."}]}`;
-  
+
   const data = await callDify(query);
   return parseDifyJson(data.answer) || { suggestions: [] };
 };
@@ -83,7 +83,7 @@ export const getBudgetSuggestions = async (transactions: Transaction[]) => {
 export const forecastSpending = async (transactions: Transaction[]) => {
   const query = `Dự báo chi tiêu 3 tháng tới từ dữ liệu: ${JSON.stringify(transactions)}. 
   Trả về JSON: {"predictions": [{"month": "...", "projectedExpense": 0, "projectedBalance": 0}], "riskFactors": [], "recommendations": [], "forecastBalance": 0}`;
-  
+
   const data = await callDify(query);
   return parseDifyJson(data.answer) || { predictions: [], riskFactors: [], recommendations: [], forecastBalance: 0 };
 };
@@ -91,7 +91,40 @@ export const forecastSpending = async (transactions: Transaction[]) => {
 export const extractBillFromEmail = async (emailText: string) => {
   const query = `Trích xuất thông tin hóa đơn từ văn bản: "${emailText}". 
   Trả về JSON: {"name": "...", "amount": 0, "dueDate": "YYYY-MM-DD", "isRecurring": true}`;
-  
+
   const data = await callDify(query);
   return parseDifyJson(data.answer);
+};
+
+export const sendChatMessage = async (query: string, inputs: any = {}, user: string = 'finwise-user') => {
+  if (!DIFY_API_KEY) {
+    throw new Error("DIFY_API_KEY chưa được cấu hình! Kiểm tra file .env.local");
+  }
+
+  try {
+    const response = await fetch(`${DIFY_BASE_URL}/chat-messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DIFY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: inputs,
+        query: query,
+        user: user,
+        response_mode: 'blocking'
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(`Dify API Error: ${err.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Chat Error:", error);
+    throw error;
+  }
 };
