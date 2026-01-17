@@ -26,7 +26,14 @@ const BudgetManager: React.FC<BudgetManagerProps> = ({ budgets, transactions }) 
   const handleAISuggest = async () => {
     setIsSuggesting(true);
     try {
-      const result = await getBudgetSuggestions(transactions);
+      // Calculate Income context for AI
+      const calculatedIncome = transactions.reduce((acc, t) => {
+        if (t.type === 'income') return acc + (Number(t.amount) || 0);
+        return acc;
+      }, 0);
+      const totalIncome = calculatedIncome > 0 ? calculatedIncome : 45200000;
+
+      const result = await getBudgetSuggestions(transactions, totalIncome);
       setSuggestionData(result);
     } catch (e) {
       console.error(e);
@@ -169,9 +176,15 @@ const BudgetManager: React.FC<BudgetManagerProps> = ({ budgets, transactions }) 
           </div>
           <div className="space-y-3 max-h-60 overflow-y-auto scrollbar-hide">
             {suggestionData.suggestions.map((s: any, idx: number) => (
-              <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5">
-                <p className="text-xs font-bold text-white mb-1">{s.category}: <span className="text-blue-300">{(s.suggestedLimit / 1000).toLocaleString()}K</span></p>
-                <button onClick={() => applySuggestion(s.category, s.suggestedLimit)} className="w-full py-1 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-[9px] font-black uppercase transition-all">Áp dụng</button>
+              <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-xs font-bold text-white">{s.category}</p>
+                  <span className="text-blue-300 text-xs font-black">{(s.suggestedLimit / 1000).toLocaleString()}K</span>
+                </div>
+                <p className="text-[10px] text-slate-400 italic mb-2 leading-tight">{s.reason}</p>
+                <button onClick={() => applySuggestion(s.category, s.suggestedLimit)} className="w-full py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1">
+                  <CheckCircle2 size={10} /> Áp dụng
+                </button>
               </div>
             ))}
           </div>

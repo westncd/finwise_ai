@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Wallet, PieChart, Bell, TrendingUp, MessageSquare,
-  Plus, LogOut, Terminal, Zap, RefreshCw, BarChart3, DatabaseZap, Server
+  Plus, LogOut, Terminal, Zap, RefreshCw, BarChart3, Server
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionsList from './components/TransactionsList';
@@ -43,44 +43,7 @@ const App: React.FC = () => {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 8));
   };
 
-  const handleInjectMockData = (type: 'momo' | 'bank' | 'bill') => {
-    addLog(`n8n: Simulating incoming email for ${type.toUpperCase()}...`);
 
-    if (type === 'momo') {
-      const newTx: Transaction = {
-        id: Math.random().toString(36).substr(2, 9),
-        date: new Date().toISOString(),
-        amount: Math.floor(Math.random() * 500000) + 50000,
-        category: 'Ăn uống',
-        description: `Thanh toán MoMo tại HIGHLANDS COFFEE #${Math.floor(Math.random() * 1000)}`,
-        source: 'MoMo'
-      };
-      setTransactions(prev => [newTx, ...prev]);
-      addLog(`MySQL: Giả lập thành công - Đã lưu 1 giao dịch MoMo.`);
-    } else if (type === 'bank') {
-      const newTx: Transaction = {
-        id: Math.random().toString(36).substr(2, 9),
-        date: new Date().toISOString(),
-        amount: Math.floor(Math.random() * 2000000) + 100000,
-        category: 'Mua sắm',
-        description: `GD: 00123-9992 - Chuyển khoản nội bộ VCB`,
-        source: 'Ngân hàng'
-      };
-      setTransactions(prev => [newTx, ...prev]);
-      addLog(`MySQL: Giả lập thành công - Đã lưu 1 giao dịch Ngân hàng.`);
-    } else if (type === 'bill') {
-      const newBill: Bill = {
-        id: Math.random().toString(),
-        name: 'Hóa đơn Điện tháng ' + (new Date().getMonth() + 1),
-        amount: 850000,
-        dueDate: new Date().toISOString().split('T')[0],
-        status: 'Chờ thanh toán',
-        isRecurring: true
-      };
-      setBills(prev => [newBill, ...prev]);
-      addLog(`MySQL: Giả lập thành công - Phát hiện 1 hóa đơn mới từ Email.`);
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -127,6 +90,63 @@ const App: React.FC = () => {
     }
   };
 
+  const handleInjectMockData = async (type: 'momo' | 'bank' | 'bill') => {
+    addLog(`n8n: Simulating incoming email for ${type.toUpperCase()}...`);
+
+    try {
+      if (type === 'momo') {
+        const body = {
+          date: new Date().toISOString(),
+          amount: Math.floor(Math.random() * 500000) + 50000,
+          category: 'Ăn uống',
+          description: `Thanh toán MoMo tại HIGHLANDS COFFEE #${Math.floor(Math.random() * 1000)}`,
+          source: 'MoMo',
+          type: 'expense'
+        };
+        await fetch(`${API_BASE}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        addLog(`MySQL: Giả lập thành công - Đã lưu 1 giao dịch MoMo.`);
+      } else if (type === 'bank') {
+        const body = {
+          date: new Date().toISOString(),
+          amount: Math.floor(Math.random() * 2000000) + 100000,
+          category: 'Mua sắm',
+          description: `GD: 00123-9992 - Chuyển khoản nội bộ VCB`,
+          source: 'Ngân hàng',
+          type: 'expense'
+        };
+        await fetch(`${API_BASE}/transactions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        addLog(`MySQL: Giả lập thành công - Đã lưu 1 giao dịch Ngân hàng.`);
+      } else if (type === 'bill') {
+        const body = {
+          name: 'Hóa đơn Điện tháng ' + (new Date().getMonth() + 1),
+          amount: 850000,
+          dueDate: new Date().toISOString().split('T')[0],
+          status: 'Chờ thanh toán',
+          isRecurring: true
+        };
+        await fetch(`${API_BASE}/bills`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        addLog(`MySQL: Giả lập thành công - Phát hiện 1 hóa đơn mới từ Email.`);
+      }
+      // Refresh Data from Backend
+      fetchData();
+    } catch (e) {
+      addLog("Lỗi khi ghi vào Database!");
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) fetchData();
   }, [isAuthenticated]);
@@ -134,15 +154,13 @@ const App: React.FC = () => {
   if (!isAuthenticated) return <Auth onLogin={handleLogin} />;
 
   const navItems = [
-    { id: 'dashboard', label: 'Tổng quan & Đốt tiền', icon: LayoutDashboard },
-    { id: 'transactions', label: 'Lịch sử Giao dịch', icon: Wallet },
-    { id: 'budgets', label: 'Hạn mức Ngân sách', icon: PieChart },
-    { id: 'bills', label: 'Nhắc hóa đơn', icon: Bell },
-    { id: 'forecast', label: 'Dự báo & Rủi ro', icon: TrendingUp },
-    { id: 'metabase', label: 'Metabase BI', icon: BarChart3 },
-    { id: 'superset', label: 'Superset Pro', icon: DatabaseZap },
-    { id: 'datacenter', label: 'n8n Workflow Hub', icon: Server },
-    { id: 'advisor', label: 'Dify Chat Advisor', icon: MessageSquare },
+    { id: 'dashboard', label: 'Tổng quan Tài chính', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Sổ cái Giao dịch', icon: Wallet },
+    { id: 'budgets', label: 'Quản lý Ngân sách', icon: PieChart },
+    { id: 'bills', label: 'Quản lý Hóa đơn', icon: Bell },
+    { id: 'forecast', label: 'Dự báo & Phân tích Rủi ro', icon: TrendingUp },
+    { id: 'metabase', label: 'Phân tích Nâng cao', icon: BarChart3 },
+    { id: 'advisor', label: 'Trợ lý AI Tài chính', icon: MessageSquare },
   ];
 
   return (
@@ -169,6 +187,9 @@ const App: React.FC = () => {
           </div>
           <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2.5 text-slate-500 hover:text-rose-400 transition-colors text-xs font-bold uppercase tracking-wide">
             <LogOut size={14} /> Thoát
+          </button>
+          <button onClick={() => setActiveTab('datacenter')} className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wide ${activeTab === 'datacenter' ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-500 hover:text-emerald-400 hover:bg-white/5'}`}>
+            <Server size={14} /> Trung tâm Tự động hóa
           </button>
         </div>
       </aside>
@@ -198,7 +219,6 @@ const App: React.FC = () => {
           {activeTab === 'bills' && <BillReminders bills={bills} addLog={addLog} />}
           {activeTab === 'forecast' && <ForecastView transactions={transactions} />}
           {activeTab === 'metabase' && <BIAnalytics type="metabase" />}
-          {activeTab === 'superset' && <BIAnalytics type="superset" />}
           {activeTab === 'datacenter' && <DataCenter onInjectMockData={handleInjectMockData} />}
           {activeTab === 'advisor' && <ChatAdvisor transactions={transactions} budgets={budgets} />}
 

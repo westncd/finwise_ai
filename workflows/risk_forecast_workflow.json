@@ -1,0 +1,146 @@
+{
+    "name": "FinWise Risk & Forecast Workflow",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "triggerAtHour": 8
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule (Daily 8am)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://backend:5000/api/risk-assessment",
+                "method": "GET",
+                "options": {}
+            },
+            "name": "Check Risks",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 2,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json[\"risks\"].length > 0}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Risks Detected?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "message": "=⚠️ FinWise Risk Alert:\n{{$json[\"risks\"].map(r => `- [${r.level}] ${r.message}`).join(\"\\n\")}}"
+            },
+            "name": "Notify (Console/Log)",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                850,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://backend:5000/api/forecast",
+                "method": "GET",
+                "options": {}
+            },
+            "name": "Get Forecast",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 2,
+            "position": [
+                450,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "message": "=📊 Spending Forecast Next Month:\n{{$json[\"forecast\"].map(f => `- ${f.category}: ${f.predicted_amount} VND`).join(\"\\n\")}}"
+            },
+            "name": "Log Forecast",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                650,
+                500
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule (Daily 8am)": {
+            "main": [
+                [
+                    {
+                        "node": "Check Risks",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Get Forecast",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Risks": {
+            "main": [
+                [
+                    {
+                        "node": "Risks Detected?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Risks Detected?": {
+            "main": [
+                [
+                    {
+                        "node": "Notify (Console/Log)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Forecast": {
+            "main": [
+                [
+                    {
+                        "node": "Log Forecast",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

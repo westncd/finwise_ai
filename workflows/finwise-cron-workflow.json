@@ -41,37 +41,38 @@
             }
         },
         {
+            "typeVersion": 1,
+            "position": [
+                900,
+                53
+            ],
             "parameters": {
-                "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  const budget = item.json;\n  const limit = parseFloat(budget.limit_amount);\n  const spent = parseFloat(budget.spent);\n  \n  if (limit > 0) {\n    const ratio = spent / limit;\n    const percent = (ratio * 100).toFixed(1);\n    \n    if (ratio >= 1.0) {\n      results.push({\n        json: {\n          ...budget,\n          percent,\n          alertLevel: 'CRITICAL',\n          message: `🚨 CẢNH BÁO ĐỎ: Danh mục ${budget.category} đã tiêu lố ${percent}%! Hệ thống sẽ khóa chi tiêu.`\n        }\n      });\n    } else if (ratio >= 0.8) {\n       results.push({\n        json: {\n          ...budget,\n          percent,\n          alertLevel: 'WARNING',\n          message: `⚠️ CẢNH BÁO: Danh mục ${budget.category} đã tiêu ${percent}% ngân sách.`\n        }\n      });\n    }\n  }\n}\n\nreturn results;"
+                "jsCode": "const alerts = [];\nconst criticals = [];\n\nfor (const item of $input.all()) {\n  const budget = item.json;\n  const limit = parseFloat(budget.limit_amount);\n  const spent = parseFloat(budget.spent);\n  \n  if (limit > 0) {\n    const ratio = spent / limit;\n    const percent = (ratio * 100).toFixed(1);\n    \n    if (ratio >= 1.0) {\n      criticals.push(`<li><b>${budget.category}</b>: Đã tiêu <b style=\"color:red\">${percent}%</b> (${parseInt(spent).toLocaleString()} / ${parseInt(limit).toLocaleString()}) - <u>Hệ thống đã khóa chi tiêu</u>.</li>`);\n    } else if (ratio >= 0.8) {\n       alerts.push(`<li><b>${budget.category}</b>: Đã tiêu <span style=\"color:orange\">${percent}%</span> (${parseInt(spent).toLocaleString()} / ${parseInt(limit).toLocaleString()}).</li>`);\n    }\n  }\n}\n\nif (alerts.length === 0 && criticals.length === 0) return [];\n\nlet html = '';\nif (criticals.length > 0) {\n  html += `<h3>🚨 CẢNH BÁO ĐỎ (Đã vượt ngân sách)</h3><ul>${criticals.join('')}</ul>`;\n}\nif (alerts.length > 0) {\n  html += `<h3>⚠️ Cảnh báo sắp tới hạn mức</h3><ul>${alerts.join('')}</ul>`;\n}\n\nreturn [{\n  json: {\n    subject: `[FinWise] Cảnh báo Ngân sách (${criticals.length + alerts.length} mục)`, \n    message: html,\n    toEmail: 'tumngf@gmail.com'\n  }\n}];"
             },
             "id": "analyze-budgets",
             "name": "Analyze Budgets",
             "type": "n8n-nodes-base.code",
+            "conditions": {
+                "string": [
+                    {
+                        "value1": "={{ $json.alertLevel }}",
+                        "value2": "CRITICAL"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "filter-critical",
+            "name": "Filter Critical Budgets",
+            "type": "n8n-nodes-base.code",
             "typeVersion": 1,
             "position": [
                 900,
-                300
-            ]
-        },
-        {
+                100
+            ],
             "parameters": {
-                "conditions": {
-                    "string": [
-                        {
-                            "value1": "={{ $json.alertLevel }}",
-                            "value2": "CRITICAL"
-                        }
-                    ]
-                }
-            },
-            "id": "switch-alert",
-            "name": "Check Alert Level",
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 1,
-            "position": [
-                1120,
-                300
-            ]
+                "jsCode": "const criticals = [];\nfor (const item of $input.all()) {\n  const budget = item.json;\n  const limit = parseFloat(budget.limit_amount);\n  const spent = parseFloat(budget.spent);\n  if (limit > 0 && spent / limit >= 1.0) {\n    criticals.push({ json: budget });\n  }\n}\nreturn criticals;"
+            }
         },
         {
             "parameters": {
@@ -114,23 +115,23 @@
             }
         },
         {
-            "parameters": {
-                "jsCode": "const results = [];\nconst today = new Date();\nconst checkWindow = new Date();\ncheckWindow.setDate(today.getDate() + 30); // Widen to 30 days for testing\n\nfor (const item of $input.all()) {\n  const bill = item.json;\n  if (!bill.due_date) continue;\n  \n  const dueDate = new Date(bill.due_date);\n  \n  // Calculate days difference\n  const diffTime = dueDate - today;\n  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n  \n  let msg = '';\n  let level = 'BILL_REMINDER';\n  \n  if (daysLeft < 0) {\n      msg = `🔥 QUÁ HẠN: Hóa đơn ${bill.name} đã quá hạn ${Math.abs(daysLeft)} ngày!`;\n      level = 'CRITICAL';\n  } else if (daysLeft === 0) {\n      msg = `🔥 HÔM NAY: Hạn chót thanh toán hóa đơn ${bill.name}.`;\n      level = 'WARNING';\n  } else if (daysLeft <= 3) {\n      msg = `⏰ GẤP: Hóa đơn ${bill.name} cần trả trong ${daysLeft} ngày tới.`;\n      level = 'WARNING';\n  } else {\n      // For testing: Show pending bills even if far away\n      msg = `📅 Sắp tới: Hóa đơn ${bill.name} hạn ${bill.due_date} (còn ${daysLeft} ngày).`;\n      level = 'INFO';\n  }\n  \n  results.push({\n    json: {\n      ...bill,\n      alertLevel: level,\n      message: msg\n    }\n  });\n}\nreturn results;"
-            },
-            "id": "analyze-bills",
-            "name": "Analyze Bills",
-            "type": "n8n-nodes-base.code",
             "typeVersion": 1,
             "position": [
                 900,
                 500
-            ]
+            ],
+            "parameters": {
+                "jsCode": "const urgent = [];\nconst upcoming = [];\nconst today = new Date();\n\nfor (const item of $input.all()) {\n  const bill = item.json;\n  if (!bill.due_date) continue;\n  const dueDate = new Date(bill.due_date);\n  const diffTime = dueDate - today;\n  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n  const amountStr = parseInt(bill.amount).toLocaleString() + ' ₫';\n  \n  if (daysLeft < 0) {\n      urgent.push(`<li><b style=\"color:red\">QUÁ HẠN ${Math.abs(daysLeft)} ngày</b>: ${bill.name} - ${amountStr}</li>`);\n  } else if (daysLeft === 0) {\n      urgent.push(`<li><b style=\"color:red\">HÔM NAY</b>: ${bill.name} - ${amountStr}</li>`);\n  } else if (daysLeft <= 3) {\n      urgent.push(`<li><b style=\"color:orange\">Gấp (${daysLeft} ngày)</b>: ${bill.name} - ${amountStr}</li>`);\n  } else {\n      upcoming.push(`<li>${bill.name} - ${amountStr} (Hạn: ${bill.due_date})</li>`);\n  }\n}\n\nif (urgent.length === 0 && upcoming.length === 0) return [];\n\nlet html = '';\nif (urgent.length > 0) {\n  html += `<h3>🔥 Hóa đơn cần thanh toán NGAY</h3><ul>${urgent.join('')}</ul>`;\n}\nif (upcoming.length > 0) {\n  html += `<h3>📅 Hóa đơn sắp tới</h3><ul>${upcoming.join('')}</ul>`;\n}\n\nreturn [{\n  json: {\n    subject: `[FinWise] Nhắc nhở Hóa đơn (${urgent.length + upcoming.length} mục)`, \n    message: html,\n     toEmail: 'tumngf@gmail.com'\n  }\n}];"
+            },
+            "id": "analyze-bills",
+            "name": "Analyze Bills",
+            "type": "n8n-nodes-base.code"
         },
         {
             "parameters": {
                 "resource": "message",
-                "subject": "={{ ($json.alertLevel || 'FinWise Check') + ': ' + ($json.message || '') }}",
-                "message": "={{ $json.message || 'No content' }}",
+                "subject": "={{ $json.subject }}",
+                "message": "={{ $json.message }}",
                 "toEmail": "tumngf@gmail.com",
                 "email": "tumngf@gmail.com",
                 "emails": "tumngf@gmail.com",
@@ -168,7 +169,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const results = [];\nconst data = $input.first().json;\n\nif (data.anomalies && data.anomalies.length > 0) {\n  for (const anomaly of data.anomalies) {\n    results.push({\n      json: {\n        ...anomaly,\n        alertLevel: anomaly.type,\n        message: anomaly.message\n      }\n    });\n  }\n}\n\nreturn results;"
+                "jsCode": "const results = [];\nconst data = $input.first().json;\nlet anomalies = [];\n\nif (data.anomalies && data.anomalies.length > 0) {\n  const typeMap = {\n    'HIGH_VALUE': { label: 'Giao dịch lớn', color: '#B91C1C', bg: '#FEF2F2' },\n    'DUPLICATE': { label: 'Nghi vấn trùng', color: '#C2410C', bg: '#FFF7ED' },\n    'RAPID_SPEND': { label: 'Chi tiêu dồn dập', color: '#A16207', bg: '#FEFCE8' }\n  };\n\n  anomalies = data.anomalies.map(a => {\n     const style = typeMap[a.type] || { label: a.type, color: '#374151', bg: '#F3F4F6' };\n     const cleanMsg = a.message.replace(/🚨|⚠️|WARNING:|CRITICAL:|NGHI VẤN TRÙNG LẶP:|GIAO DỊCH LỚN:/g, '').trim();\n     return `<div style=\"margin-bottom: 8px; padding: 12px; background-color: ${style.bg}; border-left: 4px solid ${style.color}; border-radius: 4px;\">\n        <div style=\"display: inline-block; padding: 2px 8px; border-radius: 12px; background-color: ${style.color}; color: white; font-size: 10px; font-weight: bold; margin-bottom: 4px;\">${style.label}</div>\n        <div style=\"color: #1F2937; font-size: 14px; font-weight: 500;\">${cleanMsg}</div>\n     </div>`;\n  });\n}\n\nif (anomalies.length === 0) return [];\n\nconst html = `\n<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px;\">\n  <h3 style=\"color: #111827; margin-bottom: 16px;\">🚨 Cảnh báo Bất thường Giao dịch</h3>\n  <div style=\"display: flex; flex-direction: column; gap: 8px;\">${anomalies.join('')}</div>\n  <p style=\"font-size: 11px; color: #6B7280; margin-top: 24px; border-top: 1px solid #E5E7EB; padding-top: 12px;\">Hệ thống FinWise AI Security • ${new Date().toLocaleString('vi-VN')}</p>\n</div>`;\n\nreturn [{\n  json: {\n    subject: `[FinWise Security] 🛡️ Phát hiện ${data.anomalies.length} giao dịch bất thường`, \n    message: html,\n     toEmail: 'tumngf@gmail.com'\n  }\n}];"
             },
             "id": "process-anomalies",
             "name": "Process Anomalies",
@@ -209,6 +210,11 @@
                         "node": "Analyze Budgets",
                         "type": "main",
                         "index": 0
+                    },
+                    {
+                        "node": "Filter Critical Budgets",
+                        "type": "main",
+                        "index": 0
                     }
                 ]
             ]
@@ -217,30 +223,18 @@
             "main": [
                 [
                     {
-                        "node": "Check Alert Level",
+                        "node": "Send Email",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Check Alert Level": {
+        "Filter Critical Budgets": {
             "main": [
                 [
                     {
                         "node": "Lock Budget",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Send Email",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Send Email",
                         "type": "main",
                         "index": 0
                     }

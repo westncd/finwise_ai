@@ -65,15 +65,34 @@ export const getFinancialAdvice = async (transactions: Transaction[], budgets: B
 };
 
 export const detectAnomalies = async (transactions: Transaction[]) => {
-  const query = `Phân tích các giao dịch sau và phát hiện bất thường: ${JSON.stringify(transactions)}. 
-  Trả về JSON chuẩn format: {"anomalies": [{"id": "...", "reason": "..."}]}`;
+  // Use Local Logic for fast demo
+  try {
+    const response = await fetch('http://localhost:5000/api/scan-anomalies');
+    const data = await response.json();
 
-  const data = await callDify(query);
-  return parseDifyJson(data.answer) || { anomalies: [] };
+    // Map backend response to frontend expected format: { id, reason }
+    const anomalies = data.anomalies.map((a: any) => ({
+      id: a.id,
+      reason: a.message
+    }));
+
+    return { anomalies };
+  } catch (error) {
+    console.warn("Local Scan failed, returning empty:", error);
+    return { anomalies: [] };
+  }
 };
 
-export const getBudgetSuggestions = async (transactions: Transaction[]) => {
-  const query = `Dựa trên dữ liệu 3 tháng gần nhất: ${JSON.stringify(transactions)}, đề xuất hạn mức ngân sách mới. 
+export const getBudgetSuggestions = async (transactions: Transaction[], totalIncome: number) => {
+  // Limit to last 50 transactions to save tokens
+  const recentTransactions = transactions.slice(0, 50);
+  // Add fallback if totalIncome is 0 to avoid AI hallucinating widely if data is missing, 
+  // though we will likely calculate it before passing or use a default.
+  const incomeStr = totalIncome > 0 ? `${(totalIncome / 1000).toLocaleString()}K VND` : "Chưa xác định";
+
+  const query = `Tôi có tổng thu nhập hàng tháng là ${incomeStr}. 
+  Dựa trên dữ liệu chi tiêu gần đây (tối đa 50 gd): ${JSON.stringify(recentTransactions.map(t => ({ c: t.category, a: t.amount, d: t.date })))}. 
+  Hãy đề xuất hạn mức ngân sách hợp lý cho từng danh mục sao cho Tổng Hạn Mức < Thu Nhập (để dành tiết kiệm ít nhất 20%).
   Trả về JSON: {"suggestions": [{"category": "...", "suggestedLimit": 0, "reason": "..."}]}`;
 
   const data = await callDify(query);
@@ -81,7 +100,9 @@ export const getBudgetSuggestions = async (transactions: Transaction[]) => {
 };
 
 export const forecastSpending = async (transactions: Transaction[]) => {
-  const query = `Dự báo chi tiêu 3 tháng tới từ dữ liệu: ${JSON.stringify(transactions)}. 
+  // Limit to last 50 transactions to save tokens
+  const recentTransactions = transactions.slice(0, 50);
+  const query = `Dự báo chi tiêu 3 tháng tới từ dữ liệu (tối đa 50 gd): ${JSON.stringify(recentTransactions)}. 
   Trả về JSON: {"predictions": [{"month": "...", "projectedExpense": 0, "projectedBalance": 0}], "riskFactors": [], "recommendations": [], "forecastBalance": 0}`;
 
   const data = await callDify(query);
