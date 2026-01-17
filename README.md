@@ -1,87 +1,118 @@
 
-# 🚀 FinWise AI - Hệ Sinh Thái Quản Lý Tài Chính Toàn Diện
-**Kết hợp sức mạnh của AI, Tự động hóa và Phân tích dữ liệu thông minh.**
+# 🚀 FinWise AI - Hệ Sinh Thái Quản Lý Tài Chính Cá Nhân
 
-FinWise AI không chỉ là một ứng dụng quản lý chi tiêu thông thường. Đây là một hệ sinh thái gồm nhiều mắt xích công nghệ kết nối với nhau để giúp bạn tự động hóa hoàn toàn việc theo dõi dòng tiền và nhận lời khuyên tài chính từ AI.
+![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-blue?style=for-the-badge&logo=react)
+![Flask](https://img.shields.io/badge/Backend-Python%20Flask-green?style=for-the-badge&logo=python)
+![MySQL](https://img.shields.io/badge/Database-MySQL-orange?style=for-the-badge&logo=mysql)
+![n8n](https://img.shields.io/badge/Automation-n8n%20Workflow-red?style=for-the-badge&logo=n8n)
+![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
 
----
-
-## 🏗️ 1. Kiến trúc hệ thống (How it works)
-
-Hệ thống hoạt động theo một quy trình khép kín:
-1.  **Dữ liệu đầu vào**: Email thông báo biến động số dư (MoMo, VCB, ZaloPay, hóa đơn điện/nước).
-2.  **n8n (Người thu gom)**: Tự động đăng nhập vào Gmail, lọc các email có từ khóa tài chính, bóc tách văn bản thô và gửi về Backend.
-3.  **Flask (Người xử lý)**: Nhận dữ liệu từ n8n, chuẩn hóa dữ liệu (ví dụ: chuyển "300k" thành "300000") và lưu vào cơ sở dữ liệu.
-4.  **MySQL (Kho lưu trữ)**: Lưu trữ mọi giao dịch, ngân sách và hóa đơn một cách an toàn trên máy tính của bạn (qua XAMPP).
-5.  **Dify AI (Bộ não)**: Đọc dữ liệu từ MySQL để đưa ra lời khuyên, phát hiện giao dịch bất thường và dự báo chi tiêu tháng tới.
-6.  **Metabase/Superset (Mắt thần)**: Vẽ biểu đồ chuyên sâu, báo cáo BI từ dữ liệu thực tế.
+**FinWise AI** là giải pháp quản lý tài chính toàn diện, kết hợp sức mạnh của **Trí tuệ Nhân tạo (Dify/Gemini)**, **Tự động hóa (n8n)** và **Phân tích Dữ liệu (BI)** để giúp bạn kiểm soát dòng tiền thông minh, an toàn và hoàn toàn tự động.
 
 ---
 
-## 🛠️ 2. Hướng dẫn cài đặt chi tiết (Step-by-Step)
+## 🌟 Chức Năng Nổi Bật (Key Features)
 
-### Bước 1: Cài đặt Cơ sở dữ liệu (MySQL qua XAMPP)
-*   Tải và cài đặt [XAMPP](https://www.apachefriends.org/download.html).
-*   Mở **XAMPP Control Panel** và nhấn **Start** tại mục MySQL.
-*   Truy cập `localhost/phpmyadmin`, tạo một Database tên là `finwise_db`.
-*   Tạo các bảng cơ bản: `transactions`, `budgets`, `bills` (Xem script trong thư mục `database/init.sql`).
+### 1. 🤖 AI Financial Advisor (Cố vấn Tài chính AI)
+-   **Phân tích Chi tiêu**: AI tự động đọc dữ liệu chi tiêu và đưa ra lời khuyên cắt giảm chi phí.
+-   **Lập kế hoạch Ngân sách**: Gợi ý hạn mức chi tiêu dựa trên thu nhập thực tế và mục tiêu tiết kiệm.
+-   **Giải thích lý do**: Mỗi gợi ý đều đi kèm giải thích chi tiết "Tại sao bạn cần làm vậy?".
 
-### Bước 2: Cài đặt n8n (Tự động hóa Email)
-*   Cài đặt [Node.js](https://nodejs.org/).
-*   Mở Terminal/CMD, chạy lệnh: `npm install n8n -g`.
-*   Gõ `n8n start` để khởi động.
-*   **Thiết lập Workflow**:
-    *   Dùng node **IMAP Email** để kết nối với Gmail của bạn (Cần tạo "Mật khẩu ứng dụng" trong Google Account).
-    *   Dùng node **HTTP Request** để gửi dữ liệu bóc tách được sang Flask API (`localhost:5000/api/webhook`).
+### 2. ⚡ Tự Động Hóa Thông Minh (Intelligent Automation)
+-   **Email Parsing**: Tự động đọc email từ ngân hàng (VCB, MoMo, Techcombank...) để tạo giao dịch.
+-   **Smart Bill Routing**: Tự động phát hiện email "Thông báo cước/Hóa đơn" và thêm vào danh sách **Cần thanh toán** (Thay vì tính là chi tiêu).
+-   **System Filter**: Tự động bỏ qua các email cảnh báo của chính hệ thống để tránh lặp vô hạn.
 
-### Bước 3: Cài đặt Backend (Flask Engine)
-*   Cài đặt Python.
-*   Tạo môi trường ảo và cài đặt thư viện:
+### 3. 🛡️ An Ninh & Cảnh Báo (Security & Alerts)
+-   **Phát hiện Bất thường**: Cảnh báo ngay lập tức qua Email khi có giao dịch lớn bất thường hoặc trùng lặp nghi vấn.
+-   **Email Tổng hợp**: Hệ thống gom tất cả các cảnh báo (Ngân sách, Hóa đơn, Rủi ro) vào **1 Email duy nhất** mỗi ngày để tránh làm phiền bạn.
+-   **Format Chuyên nghiệp**: Email cảnh báo được thiết kế đẹp mắt với các thẻ màu (Badges) dễ nhìn.
+
+### 4. 📊 Dự Báo & Rủi Ro (Forecast & Risk)
+-   **Dự báo Chi tiêu**: Sử dụng thuật toán Simple Moving Average (SMA/3-Months) để dự đoán chi tiêu tháng tới.
+-   **Cảnh báo Sớm**: Phát hiện sớm nguy cơ "cháy túi" từ ngày 15 hàng tháng dựa trên tốc độ chi tiêu hiện tại.
+
+---
+
+## 🏗️ Kiến Trúc Hệ Thống
+
+Hệ thống hoạt động theo mô hình Micro-services thu nhỏ:
+
+1.  **Thu thập**: *n8n* quét Gmail định kỳ (1 phút/lần).
+2.  **Xử lý**:
+    -   Backend *Flask* nhận dữ liệu, làm sạch và lưu vào *MySQL*.
+    -   AI Controller gọi *Dify/Google Gemini* để phân tích ngữ nghĩa.
+3.  **Lưu trữ**: *MySQL* (XAMPP) lưu trữ Transactions, Budgets, Bills.
+4.  **Hiển thị**: *React JS* (Frontend) hiển thị Dashboard tương tác.
+
+---
+
+## 🛠️ Hướng Dẫn Cài Đặt (Installation)
+
+### Yêu cầu tiên quyết (Prerequisites)
+-   Node.js & npm
+-   Python 3.8+
+-   XAMPP (hoặc MySQL Server riêng)
+-   n8n (đã cài đặt `npm install n8n -g`)
+
+### Bước 1: Khởi tạo Database
+1.  Bật XAMPP (Apache & MySQL).
+2.  Chạy script cài đặt database lần đầu:
     ```bash
-    pip install flask flask-cors mysql-connector-python requests
+    python init_local_db.py
     ```
-*   Chạy file backend: `python app.py`. Flask sẽ chạy tại cổng `5000`.
+    *(Script này sẽ tạo database `finwise_db` và các bảng cần thiết).*
 
-### Bước 4: Kết nối Dify AI (Trí tuệ nhân tạo)
-*   Truy cập [Dify.ai](https://dify.ai) và tạo một tài khoản.
-*   Tạo một App dạng **Chatbot** hoặc **Workflow**.
-*   Lấy **API Key** và dán vào biến môi trường `process.env.API_KEY` trong ứng dụng của bạn.
-*   Dify sẽ đóng vai trò phân tích các chuỗi văn bản phức tạp mà code thông thường không hiểu được.
+### Bước 2: Cài đặt Backend (Flask)
+```bash
+# Tại thư mục gốc
+python -m venv venv           # Tạo môi trường ảo (tùy chọn)
+pip install -r requirements.txt # Cài thư viện (flask, mysql-connector, etc.)
+python backend/app.py         # Chạy Server tại cổng 5000
+```
 
-### Bước 5: Cài đặt công cụ BI (Metabase - Tùy chọn)
-*   Tải [Metabase JAR](https://www.metabase.com/start/oss/).
-*   Chạy lệnh: `java -jar metabase.jar`.
-*   Truy cập `localhost:3000`, kết nối tới MySQL `finwise_db` của bạn để bắt đầu vẽ biểu đồ.
+### Bước 3: Cài đặt Frontend (React)
+```bash
+npm install                   # Cài đặt dependencies
+npm run dev                   # Chạy Web App tại cổng 5173
+```
 
----
-
-## 📱 3. Sử dụng Giao diện Frontend
-*   Frontend được xây dựng bằng **React + Tailwind CSS**.
-*   Mọi dữ liệu bạn thấy trên màn hình đều được đồng bộ thời gian thực với MySQL qua Flask.
-*   **Tính năng Mock Data**: Nếu bạn chưa có email thật, hãy vào tab **n8n Workflow Hub**, sử dụng bộ **Simulator** để tự tạo dữ liệu mẫu kiểm thử hệ thống.
-
----
-
-## 📋 4. Các bảng dữ liệu (Database Schema)
-
-| Bảng | Mục đích |
-| :--- | :--- |
-| `transactions` | Lưu lịch sử chi tiêu (Ngày, Số tiền, Hạng mục, Nguồn). |
-| `budgets` | Lưu hạn mức chi tiêu hàng tháng cho từng loại (Ăn uống, Mua sắm...). |
-| `bills` | Lưu danh sách hóa đơn cần thanh toán và ngày hạn. |
+### Bước 4: Thiết lập n8n (Tự động hóa)
+1.  Mở terminal mới, chạy `n8n start`.
+2.  Truy cập `localhost:5678`.
+3.  Import 2 file workflow trong thư mục `workflows/`:
+    -   `finwise-n8n-workflow.json`: Xử lý Email đầu vào.
+    -   `finwise-cron-workflow.json`: Chạy Cron job (Cảnh báo & Gửi email tổng hợp).
 
 ---
 
-## ❓ 5. Câu hỏi thường gặp (FAQ)
+## 📂 Cấu Trúc Thư Mục
 
-**Q: Tôi không có API Key Dify thì sao?**
-*   A: Hệ thống vẫn hoạt động ở chế độ cơ bản (hiển thị dữ liệu từ MySQL), nhưng các tính năng tư vấn thông minh và bóc tách email sẽ không hoạt động.
-
-**Q: n8n có an toàn không khi đọc email của tôi?**
-*   A: Có. n8n chạy **Local** trên máy tính của bạn, không có dữ liệu email nào gửi đi ngoài trừ việc gửi về Backend Flask do chính bạn quản lý.
-
-**Q: Tại sao phải dùng Flask làm trung gian?**
-*   A: Flask đóng vai trò bảo mật và chuẩn hóa. Nó kiểm tra dữ liệu từ n8n trước khi ghi vào MySQL để tránh lỗi định dạng.
+```
+finwise_ai/
+├── backend/            # Flask API Server
+│   ├── app.py          # Main Backend Logic
+│   └── seed_data.py    # Dữ liệu mẫu
+├── components/         # React UI Components
+│   ├── Dashboard.tsx   # Màn hình chính
+│   ├── BudgetManager.tsx # Quản lý ngân sách AI
+│   └── ...
+├── workflows/          # n8n Automation Files
+│   ├── finwise-n8n-workflow.json  # Email Parser
+│   └── finwise-cron-workflow.json # Cron Jobs
+├── database/           # SQL Scripts
+├── init_local_db.py    # Setup script
+└── README.md           # Tài liệu hướng dẫn
+```
 
 ---
-*Chúc bạn quản lý tài chính hiệu quả với FinWise AI!*
+
+## 🛡️ Bảo Mật & Riêng Tư
+
+-   **Local First**: Toàn bộ dữ liệu tài chính nằm trên máy tính của bạn (MySQL Local).
+-   **No Hardcoded Secrets**: Hệ thống sử dụng biến môi trường, không lưu cứng API Key trong code.
+-   **Safe AI**: Chỉ gửi dữ liệu ẩn danh hoặc tổng hợp lên AI để phân tích.
+
+---
+
+*Developed by FinWise Team © 2026*
