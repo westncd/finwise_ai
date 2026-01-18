@@ -1,130 +1,146 @@
-
-import { Transaction, Budget } from '../types';
-
-// API Key được lấy từ environment, đây là Dify API Key của bạn
-const DIFY_API_KEY = process.env.DIFY_API_KEY || '';
-const DIFY_BASE_URL = 'https://api.dify.ai/v1';
+import { Transaction, Budget } from "../types";
 
 /**
- * Hàm trợ giúp gọi Dify Chat API
+ * Base URL:
+ * - Khi chạy dev: Vite proxy sẽ forward /api -> http://localhost:5000
+ * - Khi deploy: frontend + backend cùng domain thì vẫn dùng /api
  */
-const callDify = async (query: string, inputs: any = {}) => {
-  if (!DIFY_API_KEY) {
-    console.error("DIFY_API_KEY is missing!");
-    return { answer: "Lỗi: Chưa cấu hình API Key cho Dify." };
+const API_BASE = "/api";
+
+/**
+ * Helper gọi Flask backend
+ */
+async function postJSON<T>(url: string, body: any): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error || "API request failed");
   }
+  return data;
+}
 
-  try {
-    const response = await fetch(`${DIFY_BASE_URL}/chat-messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DIFY_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: inputs,
-        query: query,
-        user: 'finwise-local-user',
-        response_mode: 'blocking'
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Dify API Error');
+/**
+ * ========== CORE CHAT ==========
+ * Chat tư vấn tài chính (dùng DB thật trong backend)
+ */
+export async function sendChatMessage(
+  query: string,
+  user: string = "u1"
+): Promise<string> {
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: user,
+      question: query,
     }
+  );
 
-    return await response.json();
-  } catch (error) {
-    console.error("Dify Service Error:", error);
-    throw error;
-  }
-};
-
-/**
- * Trích xuất JSON từ phản hồi văn bản của Dify (đề phòng Dify trả về Markdown code block)
- */
-const parseDifyJson = (text: string) => {
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    return JSON.parse(text);
-  } catch (e) {
-    console.warn("Could not parse Dify response as JSON:", text);
-    return null;
-  }
-};
-
-export const getFinancialAdvice = async (transactions: Transaction[], budgets: Budget[]) => {
-  const query = `Dữ liệu giao dịch: ${JSON.stringify(transactions.slice(0, 15))}. 
-  Hạn mức ngân sách: ${JSON.stringify(budgets)}. 
-  Hãy đưa ra 3 lời khuyên tài chính ngắn gọn bằng tiếng Việt.`;
-
-  const data = await callDify(query);
   return data.answer;
-};
+}
 
-export const detectAnomalies = async (transactions: Transaction[]) => {
-  const query = `Phân tích các giao dịch sau và phát hiện bất thường: ${JSON.stringify(transactions)}. 
-  Trả về JSON chuẩn format: {"anomalies": [{"id": "...", "reason": "..."}]}`;
-
-  const data = await callDify(query);
-  return parseDifyJson(data.answer) || { anomalies: [] };
-};
-
-export const getBudgetSuggestions = async (transactions: Transaction[]) => {
-  const query = `Dựa trên dữ liệu 3 tháng gần nhất: ${JSON.stringify(transactions)}, đề xuất hạn mức ngân sách mới. 
-  Trả về JSON: {"suggestions": [{"category": "...", "suggestedLimit": 0, "reason": "..."}]}`;
-
-  const data = await callDify(query);
-  return parseDifyJson(data.answer) || { suggestions: [] };
-};
-
-export const forecastSpending = async (transactions: Transaction[]) => {
-  const query = `Dự báo chi tiêu 3 tháng tới từ dữ liệu: ${JSON.stringify(transactions)}. 
-  Trả về JSON: {"predictions": [{"month": "...", "projectedExpense": 0, "projectedBalance": 0}], "riskFactors": [], "recommendations": [], "forecastBalance": 0}`;
-
-  const data = await callDify(query);
-  return parseDifyJson(data.answer) || { predictions: [], riskFactors: [], recommendations: [], forecastBalance: 0 };
-};
-
-export const extractBillFromEmail = async (emailText: string) => {
-  const query = `Trích xuất thông tin hóa đơn từ văn bản: "${emailText}". 
-  Trả về JSON: {"name": "...", "amount": 0, "dueDate": "YYYY-MM-DD", "isRecurring": true}`;
-
-  const data = await callDify(query);
-  return parseDifyJson(data.answer);
-};
-
-export const sendChatMessage = async (query: string, inputs: any = {}, user: string = 'finwise-user') => {
-  if (!DIFY_API_KEY) {
-    throw new Error("DIFY_API_KEY chưa được cấu hình! Kiểm tra file .env.local");
-  }
-
-  try {
-    const response = await fetch(`${DIFY_BASE_URL}/chat-messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DIFY_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: inputs,
-        query: query,
-        user: user,
-        response_mode: 'blocking'
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(`Dify API Error: ${err.message || response.statusText}`);
+/**
+ * ========== FINANCIAL ADVICE ==========
+ * (giữ signature cũ để UI không phải sửa nhiều)
+ */
+export async function getFinancialAdvice(
+  transactions: Transaction[],
+  budgets: Budget[]
+): Promise<string> {
+  // Backend đã tự lấy DB rồi → frontend không cần gửi transactions/budgets
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: "u1",
+      question: "Goi y toi uu chi tieu dua tren du lieu hien tai. Khong emoji.",
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Chat Error:", error);
-    throw error;
-  }
-};
+  return data.answer;
+}
+
+/**
+ * ========== ANOMALY DETECTION ==========
+ * Backend có thể mở rộng endpoint riêng sau.
+ * Hiện tại dùng advisor với câu hỏi chuyên biệt.
+ */
+export async function detectAnomalies(
+  transactions: Transaction[]
+): Promise<{ anomalies: any[] }> {
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: "u1",
+      question:
+        "Phan tich cac giao dich gan day va phat hien bat thuong. Tra loi ro rang, khong emoji.",
+    }
+  );
+
+  return { anomalies: [{ description: data.answer }] };
+}
+
+/**
+ * ========== BUDGET SUGGESTIONS ==========
+ */
+export async function getBudgetSuggestions(
+  transactions: Transaction[]
+): Promise<{ suggestions: any[] }> {
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: "u1",
+      question:
+        "De xuat dieu chinh han muc ngan sach theo xu huong chi tieu. Khong emoji.",
+    }
+  );
+
+  return { suggestions: [{ summary: data.answer }] };
+}
+
+/**
+ * ========== SPENDING FORECAST ==========
+ */
+export async function forecastSpending(
+  transactions: Transaction[]
+): Promise<{
+  forecastBalance: number;
+  predictions: any[];
+  recommendations: string[];
+}> {
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: "u1",
+      question:
+        "Du bao chi tieu 3 thang toi va dua ra canh bao neu co rui ro. Khong emoji.",
+    }
+  );
+
+  return {
+    forecastBalance: 0,
+    predictions: [],
+    recommendations: [data.answer],
+  };
+}
+
+/**
+ * ========== BILL EXTRACTION ==========
+ * (backend có thể làm endpoint riêng sau)
+ */
+export async function extractBillFromEmail(
+  emailText: string
+): Promise<any> {
+  const data = await postJSON<{ answer: string }>(
+    `${API_BASE}/ai/advisor`,
+    {
+      user_id: "u1",
+      question: `Trich xuat thong tin hoa don tu email sau: "${emailText}". Tra loi ro rang, khong emoji.`,
+    }
+  );
+
+  return { raw: data.answer };
+}
